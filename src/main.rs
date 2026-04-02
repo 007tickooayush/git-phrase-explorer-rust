@@ -8,7 +8,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n-----------------------------------------------------\n");
     let repo_path = "/home/hellsent/PRJs/REACT/portfolio-vite-react";
-    let file_path = "src/App.jsx";
+    let file_path =  "src/_components/About.jsx"; // "src/App.jsx";
+    let check_phrase = "<Text>{degree.degree}: {degree.major}</Text>";
 
     let repo = Repository::open(repo_path)?;
     let target_file_path = Path::new(file_path);
@@ -53,26 +54,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         Some(s) => s,
                         None => "",
                     };
-
-                    println!(
-                        "Commit: {} || Summary: {:?}",
-                        commit.id(),
-                        commit_summary
-                    );
-
-                    diff.print(DiffFormat::Patch, | d, _h, line| {
-                        let curr_file_path = match d.new_file().path() {
-                            Some(path) => path,
-                            None => return true,
-                        };
-                        if curr_file_path != target_file_path {
-                            return true;
+                    let mut found = false;
+                    diff.print(DiffFormat::Patch, |d, _h, line| {
+                        if d.new_file().path() == Some(target_file_path) && line.origin() == '+' {
+                            let line_str = String::from_utf8_lossy(line.content());
+                            if line_str.contains(check_phrase) {
+                                found = true;
+                            }
                         }
-                        let line_str = String::from_utf8_lossy(line.content());
-                        println!("{}", line_str);
                         true
                     })?;
-                    println!("\n-----------------------------------------\n");
+
+                    if found {
+                        println!(
+                            "Commit: {} || Summary: {:?}",
+                            commit.id(),
+                            commit_summary
+                        );
+
+                        let tree = commit.tree()?;
+                        let entry = tree.get_path(target_file_path)?;
+                        let blob = repo.find_blob(entry.id())?;
+                        let content = String::from_utf8_lossy(blob.content());
+                        println!("{}", content);
+                        println!("\n-----------------------------------------\n");
+                    }
                 }
             }
         }

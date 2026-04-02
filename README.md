@@ -1,0 +1,2 @@
+# Git Phrase based explorer:
+This is a simple tool which can be utilized to search all the changes in a specific file and check for commits which contain some certain phrases which the user wishes to identify and analyze.
