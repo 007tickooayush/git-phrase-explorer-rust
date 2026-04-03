@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let repo_path = "/home/hellsent/ZedProjects/git-phrase-explorer/git-commits-track-test";
     let file_path =  "file1.txt"; // "src/App.jsx";
-    let check_phrase = "COMMIT FILE.";
+    let check_phrase = "UPDATED FILE IN branch2 changes";
     let mut result_phrase_line = String::new();
     let single_discovery = true;
 
@@ -58,6 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Some(&mut diff_opts)
             )?;
         }
+        let mut found = false;
 
         for delta in diff.deltas() {
             if let Some(new_path) = delta.new_file().path() {
@@ -66,7 +67,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         Some(s) => s,
                         None => "",
                     };
-                    let mut found = false;
                     diff.print(DiffFormat::Patch, |d, _h, line| {
                         if d.new_file().path() == Some(target_file_path) && line.origin() == '+' {
                             let line_str = String::from_utf8_lossy(line.content());
@@ -100,7 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        if single_discovery {
+        if single_discovery && found {
             break;
         }
     }
