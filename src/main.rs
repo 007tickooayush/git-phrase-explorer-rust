@@ -10,6 +10,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let repo_path = "/home/hellsent/PRJs/REACT/portfolio-vite-react";
     let file_path =  "src/_components/About.jsx"; // "src/App.jsx";
     let check_phrase = "<Text>{degree.degree}: {degree.major}</Text>";
+    let mut result_phrase_line = String::new();
 
     let repo = Repository::open(repo_path)?;
     let target_file_path = Path::new(file_path);
@@ -59,6 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if d.new_file().path() == Some(target_file_path) && line.origin() == '+' {
                             let line_str = String::from_utf8_lossy(line.content());
                             if line_str.contains(check_phrase) {
+                                result_phrase_line = line_str.to_string();
                                 found = true;
                             }
                         }
@@ -72,11 +74,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             commit_summary
                         );
 
+                        // todo: handle repeating occurances
+
                         let tree = commit.tree()?;
                         let entry = tree.get_path(target_file_path)?;
                         let blob = repo.find_blob(entry.id())?;
                         let content = String::from_utf8_lossy(blob.content());
-                        println!("{}", content);
+                        println!("FILE CONTENTS:\n\n{}", content);
+                        println!("\n-----------------------------------------\n");
+                        println!("LINE COTNENTS:\n\n{}", result_phrase_line);
                         println!("\n-----------------------------------------\n");
                     }
                 }
