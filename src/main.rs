@@ -7,17 +7,28 @@ use git2::{DiffFormat, DiffOptions, Repository, Sort};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n-----------------------------------------------------\n");
-    let repo_path = "/home/hellsent/PRJs/REACT/portfolio-vite-react";
-    let file_path =  "src/_components/About.jsx"; // "src/App.jsx";
-    let check_phrase = "<Text>{degree.degree}: {degree.major}</Text>";
+
+    // X------------------------------------------ EXTERNAL VARIABLES ------------------------------------------X
+
+    // // testing basic implementation:
+    // let repo_path = "/home/hellsent/PRJs/REACT/portfolio-vite-react";
+    // let file_path =  "src/_components/About.jsx"; // "src/App.jsx";
+    // let check_phrase = "<Text>{degree.degree}: {degree.major}</Text>";
+
+    let repo_path = "/home/hellsent/ZedProjects/git-phrase-explorer/git-commits-track-test";
+    let file_path =  "file1.txt"; // "src/App.jsx";
+    let check_phrase = "COMMIT FILE.";
     let mut result_phrase_line = String::new();
+    let single_discovery = true;
+
+    // X-----------------------------------------X EXTERNAL VARIABLES X-----------------------------------------X
 
     let repo = Repository::open(repo_path)?;
     let target_file_path = Path::new(file_path);
 
     let mut revwalk = repo.revwalk()?;
     revwalk.push_head()?;
-    revwalk.set_sorting(Sort::TOPOLOGICAL)?;
+    revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::REVERSE)?; // utilizing reverse topological sorting
 
     for oid in revwalk {
         let oid = oid?;
@@ -89,7 +100,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-
+        if single_discovery {
+            break;
+        }
     }
 
     // // personal import
