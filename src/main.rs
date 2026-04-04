@@ -1,3 +1,4 @@
+mod explorer;
 mod parser;
 
 use std::path::Path;
