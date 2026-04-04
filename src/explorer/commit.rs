@@ -1,8 +1,12 @@
 use std::{borrow::Cow, fmt};
 
 use chrono::{DateTime, FixedOffset, Local, TimeZone, Utc};
+use git2::DiffOptions;
 use git2::Repository;
 
+use git2::Error as Git2Error;
+
+use crate::explorer::changes::Changes;
 
 pub struct Commit<'repo> {
     pub repo: &'repo Repository,
@@ -79,6 +83,10 @@ impl<'repo> Commit<'repo> {
     pub fn time_local(&self) -> Option<DateTime<Local>> {
         let time = self.time()?.with_timezone(&Local);
         Some(time)
+    }
+
+    pub fn changes(&self, diff_options: &'repo mut DiffOptions) -> Result<Changes, Git2Error> {
+        Changes::from_commit(self, diff_options)
     }
 
 }
