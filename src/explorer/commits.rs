@@ -1,5 +1,8 @@
-use git2::{Commit, Repository, Revwalk, Sort};
+use git2::{Repository, Revwalk, Sort};
 pub use git2::Error as Git2Error;
+
+use crate::explorer::commit::Commit;
+
 
 pub struct Commits<'repo> {
     repo: &'repo Repository,
@@ -36,6 +39,8 @@ impl<'repo> Iterator for Commits<'repo> {
             Ok(commit) => commit,
             Err(err) => return Some(Err(err))
         };
+
+        let commit = Commit::new(self.repo, commit);
 
         Some(Ok(commit))
     }
