@@ -53,6 +53,28 @@ impl<'repo, 'commit> Iterator for Changes<'repo, 'commit> {
     type Item = Result<Change, Git2Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        todo!()
+
+        todo!("COMPLETE THE DiffDelta and Diff Contents handling");
+
+        let delta = match self.diff.get_delta(self.idx_delta) {
+            Some(delta) => delta,
+            None => return None
+        };
+        self.idx_delta += 1;
+        
+        // let change = self.next_change.take();
+
+        self.diff.print(git2::DiffFormat::Patch, | _d, _h, line| {
+            let line_contents = String::from_utf8_lossy(line.content());
+            // println!("{}", line_contents.to_string());
+            true
+        }).unwrap();
+
+
+        Some(Ok(
+            Change {
+                delta_idx: 2
+            }
+        ))
     }
 }

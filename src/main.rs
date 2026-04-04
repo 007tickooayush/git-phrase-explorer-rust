@@ -1,5 +1,6 @@
 mod explorer;
 mod parser;
+mod tests;
 
 use std::path::Path;
 
