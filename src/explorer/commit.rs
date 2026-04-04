@@ -85,7 +85,7 @@ impl<'repo> Commit<'repo> {
         Some(time)
     }
 
-    pub fn changes(&self, diff_options: &'repo mut DiffOptions) -> Result<Changes, Git2Error> {
+    pub fn changes(&self, diff_options: &'repo mut DiffOptions) -> Result<Changes<'repo, '_>, Git2Error> {
         Changes::from_commit(self, diff_options)
     }
 
