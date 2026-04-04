@@ -1,20 +1,44 @@
+mod parser;
+
 use std::path::Path;
 
+use clap::Parser;
 use git2::{DiffFormat, DiffOptions, Repository, Sort};
+
+use crate::parser::CommandArgs;
 
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
+    let args = CommandArgs::parse();
+
+    if args.verbose {
+        println!("\n*******************************************************");
+        println!("repo_path:            {}", args.repo_path);
+        println!("file_path:            {}", args.file_path);
+        println!("phrase:               {}", args.phrase);
+        println!("single_discovery:     {}", args.single_discovery);
+        println!("verbose:              {}", args.verbose);
+        println!("*******************************************************\n");
+    }
+
+
     println!("\n-----------------------------------------------------\n");
 
     // X------------------------------------------ EXTERNAL VARIABLES ------------------------------------------X
-    let repo_path = "/home/hellsent/ZedProjects/git-phrase-explorer/git-commits-track-test";
-    let file_path =  "file1.txt"; // "src/App.jsx";
-    let check_phrase = "UPDATED FILE IN branch2 changes";
-    let mut result_phrase_line = String::new();
-    let single_discovery = true;
+    let repo_path = &args.repo_path;
+    let file_path = &args.file_path;
+    let check_phrase = &args.phrase;
+    let single_discovery = args.single_discovery;
+
+    // let repo_path = "/home/hellsent/ZedProjects/git-phrase-explorer/git-commits-track-test";
+    // let file_path =  "file1.txt"; // "src/App.jsx";
+    // let check_phrase = "UPDATED FILE IN branch2 changes";
+    // let single_discovery = true;
     // X-----------------------------------------X EXTERNAL VARIABLES X-----------------------------------------X
+
+    let mut result_phrase_line = String::new();
 
     let repo = Repository::open(repo_path)?;
     let target_file_path = Path::new(file_path);

@@ -7,4 +7,5 @@ edition = "2024"
 tokio = { version = "1.5.0", features = ["rt", "rt-multi-thread", "macros"] }
 git2 = "0.20.4"
 chrono = "0.4"
+clap = {version = "4.6.0", features = ["derive"]}
 # git-commits = "0.1.0"
