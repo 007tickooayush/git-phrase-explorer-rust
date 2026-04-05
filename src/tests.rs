@@ -15,6 +15,8 @@ async fn test_structured_changes() -> Result<(), git2::Error> {
     let repo = Repo::open(repo_path)?;
     let mut diff_options = DiffOptions::new();
 
+    let mut counter = 2;
+    let mut change_counter = 2;
 
     for commit in repo.commits()? {
         println!("-------------------------------------------------------------------");
@@ -23,13 +25,21 @@ async fn test_structured_changes() -> Result<(), git2::Error> {
         
         for change in commit.changes(&mut diff_options)? {
             let change = change?;
-            println!("{}", change);
+            println!("CHANGE: {}", change);
 
-            todo!("TEST THE TRAVERSAL IMPLEMENTATION");
+            // change_counter -= 1;
+            // if change_counter == 0 {
+            //     break;
+            // }
+
+            // todo!("TEST THE TRAVERSAL IMPLEMENTATION");
         }
         println!("-------------------------------------------------------------------");
 
-        break;
+        // counter -= 1;
+        // if counter == 0 { 
+        //     break;
+        // }
     }
 
     Ok(())

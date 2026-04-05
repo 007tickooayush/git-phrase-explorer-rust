@@ -1,4 +1,4 @@
-use git2::{Diff, DiffOptions};
+use git2::{Delta, Diff, DiffDelta, DiffOptions, Repository};
 
 use crate::explorer::{change::Change, commit::Commit};
 use git2::Error as Git2Error;
@@ -53,28 +53,67 @@ impl<'repo, 'commit> Iterator for Changes<'repo, 'commit> {
     type Item = Result<Change, Git2Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-
-        todo!("COMPLETE THE DiffDelta and Diff Contents handling");
-
-        let delta = match self.diff.get_delta(self.idx_delta) {
-            Some(delta) => delta,
-            None => return None
-        };
-        self.idx_delta += 1;
-        
-        // let change = self.next_change.take();
-
-        self.diff.print(git2::DiffFormat::Patch, | _d, _h, line| {
-            let line_contents = String::from_utf8_lossy(line.content());
-            // println!("{}", line_contents.to_string());
-            true
-        }).unwrap();
-
-
-        Some(Ok(
-            Change {
-                delta_idx: 2
+        loop {
+            if let Some(change) = self.next_change.take() {
+                return Some(Ok(change));
             }
-        ))
+    
+            let delta = match self.diff.get_delta(self.idx_delta) {
+                Some(delta) => delta,
+                None => return None
+            };
+            self.idx_delta += 1;
+    
+    
+            match get_diff_changes(&self.commit.repo, delta, &self.diff) {
+                Ok(Some((change, next_change))) => {
+                    self.next_change = next_change;
+    
+                    return Some(Ok(change));
+                },
+                Ok(None) => {},
+                Err(err) => return Some(Err(err)),
+            }
+        }
+    }
+}
+
+fn get_diff_changes<'repo>(
+    repo: &Repository, 
+    delta: DiffDelta<'_>, 
+    diff: &Diff<'_>
+) -> Result<Option<(Change, Option<Change>)>, Git2Error> {
+
+    diff.print(git2::DiffFormat::Patch, | _delta, _hunk, line | {
+        let origin = line.origin();
+        true
+    }).unwrap();
+
+    // let acb = |delta_idx: i32, diff: &Diff<'_>| {
+    // };
+
+    match delta.status() {
+        Delta::Added | Delta::Copied => {
+            unimplemented!()
+        },
+        Delta::Modified => {
+            unimplemented!()
+        },
+        Delta::Deleted => {
+            unimplemented!()
+        },
+        Delta::Renamed => {
+            unimplemented!()
+        },
+
+        // All other Changes are not required to be monitored for current use case.
+        Delta::Unmodified |
+        Delta::Ignored |
+        Delta::Untracked |
+        Delta::Typechange |
+        Delta::Unreadable |
+        Delta::Conflicted => {
+            return Ok(None)
+        },
     }
 }
