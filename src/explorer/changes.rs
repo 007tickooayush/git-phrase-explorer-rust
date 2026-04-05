@@ -84,26 +84,37 @@ fn get_diff_changes<'repo>(
     diff: &Diff<'_>
 ) -> Result<Option<(Change, Option<Change>)>, Git2Error> {
 
-    diff.print(git2::DiffFormat::Patch, | _delta, _hunk, line | {
-        let origin = line.origin();
-        true
-    }).unwrap();
+    // diff.print(git2::DiffFormat::Patch, | _delta, _hunk, line | {
+    //     let origin = line.origin();
+    //     true
+    // }).unwrap();
 
     // let acb = |delta_idx: i32, diff: &Diff<'_>| {
     // };
 
     match delta.status() {
         Delta::Added | Delta::Copied => {
-            unimplemented!()
+            let mut change = Change::new(Delta::Added);
+            diff.print(git2::DiffFormat::Patch, | _delta, _hunk, line | {
+                let origin = line.origin();
+                let line_contents = String::from_utf8_lossy(line.content());
+
+                // change.append_line_contents(&origin.to_string()).unwrap();
+                change.append_line_contents(&line_contents.to_string()).unwrap();
+
+                true
+            }).unwrap();
+            
+            Ok(Some((change, None)))
         },
         Delta::Modified => {
-            unimplemented!()
+            todo!("IMPLEMENT ITERATION HANDLING FOR THIS Delta TYPE")
         },
         Delta::Deleted => {
-            unimplemented!()
+            todo!("IMPLEMENT ITERATION HANDLING FOR THIS Delta TYPE")
         },
         Delta::Renamed => {
-            unimplemented!()
+            todo!("IMPLEMENT ITERATION HANDLING FOR THIS Delta TYPE")
         },
 
         // All other Changes are not required to be monitored for current use case.
