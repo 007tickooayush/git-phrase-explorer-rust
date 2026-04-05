@@ -25,7 +25,7 @@ async fn test_structured_changes() -> Result<(), git2::Error> {
         
         for change in commit.changes(&mut diff_options)? {
             let change = change?;
-            println!("CHANGE: {}", change);
+            println!("{}", change);
 
             // change_counter -= 1;
             // if change_counter == 0 {

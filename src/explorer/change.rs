@@ -1,20 +1,29 @@
 
-use git2::Error as Git2Error;
+use git2::{Delta, Error as Git2Error};
 
 use crate::explorer::change_type::ChangeType;
 
+const NULL_CHANGES_CONSTANT: &str = "---[NULL]---";
+
 pub struct Change {
-    pub delta_idx: usize,
     line_contents: Option<String>,
     change_type: ChangeType
 }
 
 impl Change {
-    pub fn new(delta_idx: usize, change_type: ChangeType) -> Self {
+    pub fn new(delta_enum: Delta) -> Self {
+        let change_type = Self::enum_from_delta(delta_enum);
         Self {
-            delta_idx,
             line_contents: Some(String::new()),
             change_type
+        }
+    }
+
+    pub fn line_contents(&self) -> Option<&String> {
+        if let Some(contents) = &self.line_contents {
+            Some(contents)
+        } else {
+            None
         }
     }
 
@@ -24,11 +33,21 @@ impl Change {
         };
         Ok(())
     }
+
+    fn enum_from_delta(delta_enum: Delta) -> ChangeType {
+        ChangeType::from(delta_enum)
+    }
 }
 
 impl std::fmt::Display for Change {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CHANGE {}", self.delta_idx)?;
+        write!(f, "CHANGE TYPE: {}\n\n", self.change_type)?;
+
+        if let Some(line_contents) = self.line_contents() {
+            write!(f, "CHANGE CONTENTS:\n{}\n", line_contents)?;
+        } else {
+            write!(f, "CHANGE CONTENTS:\n{}\n", NULL_CHANGES_CONSTANT)?;
+        }
 
         Ok(())
     }
