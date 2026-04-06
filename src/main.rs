@@ -106,7 +106,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let entry = tree.get_path(target_file_path)?;
                         let blob = repo.find_blob(entry.id())?;
                         let content = String::from_utf8_lossy(blob.content());
-                        println!("FILE CONTENTS:\n\n{}", content);
+                        if args.verbose {
+                            println!("FILE CONTENTS:\n\n{}", content);
+                        }
                         println!("\n-----------------------------------------\n");
                         println!("LINE COTNENTS:\n\n{}", result_phrase_line);
                         println!("\n-----------------------------------------\n");
