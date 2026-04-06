@@ -75,7 +75,11 @@ impl std::fmt::Display for Change {
         write!(f, "CHANGE TYPE: {}\n\n", self.change_type)?;
 
         if let Some(line_contents) = self.line_contents() {
-            write!(f, "CHANGE CONTENTS:\n{}\n", line_contents)?;
+            if line_contents.is_empty() {
+                write!(f, "CHANGE CONTENTS:\n{}\n", NULL_CHANGES_CONSTANT)?;
+            } else {
+                write!(f, "CHANGE CONTENTS:\n{}\n", line_contents)?;
+            }
         } else {
             write!(f, "CHANGE CONTENTS:\n{}\n", NULL_CHANGES_CONSTANT)?;
         }

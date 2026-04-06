@@ -217,9 +217,6 @@ fn get_diff_changes<'repo>(
                         true
                     }).unwrap();
 
-                    change_renamed.append_line_contents(" ").unwrap();
-                    change_renamed.append_line_contents(NULL_CHANGES_CONSTANT).unwrap();
-
                     (change_modified, Some(change_renamed))
                 },
                 None => (change_renamed, None)
