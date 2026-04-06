@@ -1,21 +1,36 @@
+use std::path::PathBuf;
 
 use git2::{Delta, Error as Git2Error};
 
 use crate::explorer::change_type::ChangeType;
 
-const NULL_CHANGES_CONSTANT: &str = "---[NULL]---";
+pub const NULL_CHANGES_CONSTANT: &str = "---[NULL]---";
 
 pub struct Change {
     line_contents: Option<String>,
-    change_type: ChangeType
+    change_type: ChangeType,
+    old_file_size: Option<usize>,
+    new_file_size: Option<usize>,
+    old_file_path: Option<PathBuf>,
+    new_file_path: Option<PathBuf>,
 }
 
 impl Change {
-    pub fn new(delta_enum: Delta) -> Self {
+    pub fn new(
+        delta_enum: Delta, 
+        old_file_size: Option<usize>, 
+        new_file_size: Option<usize>,
+        old_file_path: Option<PathBuf>,
+        new_file_path: Option<PathBuf>
+    ) -> Self {
         let change_type = Self::enum_from_delta(delta_enum);
         Self {
             line_contents: Some(String::new()),
-            change_type
+            change_type,
+            old_file_size,
+            new_file_size,
+            old_file_path,
+            new_file_path
         }
     }
 
@@ -32,6 +47,22 @@ impl Change {
             contents.push_str(line);
         };
         Ok(())
+    }
+
+    pub fn update_old_file_path(&mut self, file_path: Option<PathBuf>) {
+        self.old_file_path = file_path
+    }
+
+    pub fn update_new_file_path(&mut self, file_path: Option<PathBuf>) {
+        self.new_file_path = file_path
+    }
+
+    pub fn update_old_file_size(&mut self, file_size: Option<usize>) {
+        self.old_file_size = file_size
+    }
+    
+    pub fn update_new_file_size(&mut self, file_size: Option<usize>) {
+        self.new_file_size = file_size
     }
 
     fn enum_from_delta(delta_enum: Delta) -> ChangeType {
