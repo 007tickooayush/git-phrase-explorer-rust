@@ -1,5 +1,6 @@
 use git2::Delta;
 
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub enum ChangeType {
     Added,
     Modified,
