@@ -81,6 +81,10 @@ impl Change {
         self.new_file_size
     }
 
+    pub fn change_type(&self) -> ChangeType {
+        self.change_type
+    }
+
     fn enum_from_delta(delta_enum: Delta) -> ChangeType {
         ChangeType::from(delta_enum)
     }

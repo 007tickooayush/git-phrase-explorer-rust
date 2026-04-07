@@ -49,7 +49,10 @@ async fn test_structured_changes() -> Result<(), git2::Error> {
                             let line_origin = line.chars().next().unwrap();
                             if line_origin == '+' {
                                 found_changes = true;
-                                println!("FOUND CHANGE || LINE ORIGIN == '+'");
+                                // println!("FOUND CHANGE || LINE ORIGIN == '+'");
+                                // println!("><><><><><><><><><><><><><");
+                                // println!("CHANGE CONTENTS:\n{}",change);
+                                // println!("><><><><><><><><><><><><><");
                             }
                         }
                     }

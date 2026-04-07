@@ -1,6 +1,6 @@
 use git2::Delta;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum ChangeType {
     Added,
     Modified,
