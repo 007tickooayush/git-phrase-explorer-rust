@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::{borrow::Cow, fmt};
 
 use chrono::{DateTime, FixedOffset, Local, TimeZone, Utc};
@@ -5,6 +6,7 @@ use git2::DiffOptions;
 use git2::Repository;
 
 use git2::Error as Git2Error;
+use git2::Tree;
 
 use crate::explorer::changes::Changes;
 
@@ -21,6 +23,10 @@ impl<'repo> Commit<'repo> {
 
     pub fn sha(&self) -> String {
         self.commit.id().to_string()
+    }
+
+    pub fn tree(&self) -> Result<Tree<'repo>, Git2Error> {
+        self.commit.tree()
     }
 
     pub fn message_bytes(&self) -> &[u8] {
@@ -83,6 +89,18 @@ impl<'repo> Commit<'repo> {
     pub fn time_local(&self) -> Option<DateTime<Local>> {
         let time = self.time()?.with_timezone(&Local);
         Some(time)
+    }
+
+    /// Get the contents of a file base on the repo file path specified
+    /// 
+    /// The resulting version of the file has the change w.r.t the current `Commit`
+    /// Returns `String` having the complete file contents
+    pub fn get_file(&self, target_file_path: &Path) -> Result<String, Git2Error> {
+        let tree = self.tree()?;
+        let entry = tree.get_path(target_file_path)?;
+        let blob = self.repo.find_blob(entry.id())?;
+        let file_contents = String::from_utf8_lossy(blob.content()).into_owned();
+        Ok(file_contents)
     }
 
     pub fn changes(&self, diff_options: &'repo mut DiffOptions) -> Result<Changes<'repo, '_>, Git2Error> {

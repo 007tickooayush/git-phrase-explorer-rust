@@ -65,6 +65,22 @@ impl Change {
         self.new_file_size = file_size
     }
 
+    pub fn old_file_path(&self) -> Option<&PathBuf> {
+        self.old_file_path.as_ref()
+    }
+
+    pub fn new_file_path(&self) -> Option<&PathBuf> {
+        self.new_file_path.as_ref()
+    }
+
+    pub fn old_file_size(&self) -> Option<usize> {
+        self.old_file_size
+    }
+    
+    pub fn new_file_size(&self) -> Option<usize> {
+        self.new_file_size
+    }
+
     fn enum_from_delta(delta_enum: Delta) -> ChangeType {
         ChangeType::from(delta_enum)
     }

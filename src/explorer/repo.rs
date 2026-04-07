@@ -38,7 +38,6 @@ impl Repo {
 
     /// Returns an iterator that produces all commits
     /// in the repo.
-    #[inline]
     pub fn commits_ext(&self, sort: Sort) -> Result<Commits<'_>, Git2Error> {
         Commits::new(&self.0, sort)
     }

@@ -86,6 +86,21 @@ impl<'repo, 'commit> Iterator for Changes<'repo, 'commit> {
     }
 }
 
+fn integrate_diff_line<'repo>(
+    diff: &Diff<'_>,
+    change: &mut Change
+) -> Result<(), Git2Error>{
+    diff.print(git2::DiffFormat::Patch, | _delta, _hunk, line | {
+        let origin = line.origin();
+        let line_contents = String::from_utf8_lossy(line.content());
+
+        change.append_line_contents(&origin.to_string()).unwrap();
+        change.append_line_contents(&line_contents.to_string()).unwrap();
+
+        true
+    })
+}
+
 fn get_diff_changes<'repo>(
     repo: &Repository, 
     delta: DiffDelta<'_>, 
@@ -109,15 +124,7 @@ fn get_diff_changes<'repo>(
                 Some(new_file.get_path().to_path_buf())
             );
 
-            diff.print(git2::DiffFormat::Patch, | _delta, _hunk, line | {
-                let origin = line.origin();
-                let line_contents = String::from_utf8_lossy(line.content());
-
-                change.append_line_contents(&origin.to_string()).unwrap();
-                change.append_line_contents(&line_contents.to_string()).unwrap();
-
-                true
-            }).unwrap();
+            integrate_diff_line(diff, &mut change).unwrap();
             
             Ok(Some((change, None)))
         },
@@ -138,15 +145,7 @@ fn get_diff_changes<'repo>(
                 Some(new_file.get_path().to_path_buf())
             );
 
-            diff.print(git2::DiffFormat::Patch, | _delta, _hunk, line | {
-                let origin = line.origin();
-                let line_contents = String::from_utf8_lossy(line.content());
-
-                change.append_line_contents(&origin.to_string()).unwrap();
-                change.append_line_contents(&line_contents.to_string()).unwrap();
-
-                true
-            }).unwrap();
+            integrate_diff_line(diff, &mut change).unwrap();
 
             Ok(Some((change, None)))
         },
@@ -163,15 +162,7 @@ fn get_diff_changes<'repo>(
                 None
             );
 
-            diff.print(git2::DiffFormat::Patch, | _delta, _hunk, line | {
-                let origin = line.origin();
-                let line_contents = String::from_utf8_lossy(line.content());
-
-                change.append_line_contents(&origin.to_string()).unwrap();
-                change.append_line_contents(&line_contents.to_string()).unwrap();
-
-                true
-            }).unwrap();
+            integrate_diff_line(diff, &mut change).unwrap();
 
             Ok(Some((change, None)))
         },
@@ -196,7 +187,7 @@ fn get_diff_changes<'repo>(
                 None
             };
 
-            let mut change_renamed = Change::new(
+            let change_renamed = Change::new(
                 Delta::Renamed, 
                 Some(old_file.size()), 
                 Some(new_file.size()), 
@@ -207,15 +198,7 @@ fn get_diff_changes<'repo>(
             let change = match change_modified {
                 Some(mut change_modified) => {
 
-                    diff.print(git2::DiffFormat::Patch, | _delta, _hunk, line | {
-                        let origin = line.origin();
-                        let line_contents = String::from_utf8_lossy(line.content());
-
-                        change_modified.append_line_contents(&origin.to_string()).unwrap();
-                        change_modified.append_line_contents(&line_contents.to_string()).unwrap();
-
-                        true
-                    }).unwrap();
+                    integrate_diff_line(diff, &mut change_modified).unwrap();
 
                     (change_modified, Some(change_renamed))
                 },
