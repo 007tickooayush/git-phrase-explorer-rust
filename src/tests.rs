@@ -2,8 +2,8 @@ use std::path::Path;
 
 
 
-#[tokio::test]
-async fn test_structured_changes() -> Result<(), git2::Error> {
+#[test]
+fn test_structured_changes() {
     use git2::DiffOptions;
     use crate::explorer::changes::Changes;
     use crate::explorer::repo::Repo;
@@ -18,15 +18,15 @@ async fn test_structured_changes() -> Result<(), git2::Error> {
     let check_phrase = "maxW=\"container.md\" borderRadius={\"2rem\"}";
     let single_discovery = true;
 
-    let repo = Repo::open(repo_path)?;
+    let repo = Repo::open(repo_path).unwrap();
     let target_file_path = Path::new(file_path);
     let mut diff_options = DiffOptions::new();
 
     
     println!("-------------------------------------------------------------------");
-    for commit in repo.commits()? {
-        let commit = commit?;
-        // let changes = Changes::from_commit(&commit, &mut diff_options)?;
+    for commit in repo.commits().unwrap() {
+        let commit = commit.unwrap();
+        // let changes = Changes::from_commit(&commit, &mut diff_options).unwrap();
         
         let message = match commit.message() {
             Some(message) => message,
@@ -38,8 +38,8 @@ async fn test_structured_changes() -> Result<(), git2::Error> {
         // println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
         let mut found_changes = false;
         let mut phrase_line_contents = String::new();
-        for change in commit.changes(&mut diff_options)? {
-            let change = change?;
+        for change in commit.changes(&mut diff_options).unwrap() {
+            let change = change.unwrap();
 
             if let Some(line_contents) = change.line_contents() {
                 if let Some(change_file_path) = change.new_file_path() {
@@ -68,7 +68,7 @@ async fn test_structured_changes() -> Result<(), git2::Error> {
             );
 
 
-            let file_contents = commit.get_file(target_file_path)?;
+            let file_contents = commit.get_file(target_file_path).unwrap();
             file_contents.lines().for_each(|line| {
                 if line.contains(check_phrase) {
                     phrase_line_contents = line.to_string();
@@ -80,6 +80,4 @@ async fn test_structured_changes() -> Result<(), git2::Error> {
             println!("-------------------------------------------------------------------");
         }
     }
-
-    Ok(())
 }
