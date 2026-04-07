@@ -10,8 +10,8 @@ use git2::{DiffFormat, DiffOptions, Repository, Sort};
 use crate::parser::CommandArgs;
 
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+
+fn main() {
 
     let args = CommandArgs::parse();
 
@@ -42,16 +42,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut result_phrase_line = String::new();
 
-    let repo = Repository::open(repo_path)?;
+    let repo = Repository::open(repo_path).unwrap();
     let target_file_path = Path::new(file_path);
 
-    let mut revwalk = repo.revwalk()?;
-    revwalk.push_head()?;
-    revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::REVERSE)?; // utilizing reverse topological sorting
+    let mut revwalk = repo.revwalk().unwrap();
+    revwalk.push_head().unwrap();
+    revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::REVERSE).unwrap(); // utilizing reverse topological sorting
 
     for oid in revwalk {
-        let oid = oid?;
-        let commit = repo.find_commit(oid)?;
+        let oid = oid.unwrap();
+        let commit = repo.find_commit(oid).unwrap();
 
         let mut has_parent = false;
         if commit.parent_count() > 0 {
@@ -63,18 +63,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let diff;
 
         if has_parent {
-            parent = commit.parent(0)?;
+            parent = commit.parent(0).unwrap();
             diff = repo.diff_tree_to_tree(
-                Some(&mut parent.tree()?),
-                Some(&mut commit.tree()?),
+                Some(&mut parent.tree().unwrap()),
+                Some(&mut commit.tree().unwrap()),
                 Some(&mut diff_opts)
-            )?;
+            ).unwrap();
         } else {
             diff = repo.diff_tree_to_tree(
                 None,
-                Some(&mut commit.tree()?),
+                Some(&mut commit.tree().unwrap()),
                 Some(&mut diff_opts)
-            )?;
+            ).unwrap();
         }
         let mut found = false;
 
@@ -94,7 +94,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                         true
-                    })?;
+                    }).unwrap();
 
                     if found {
                         println!(
@@ -104,9 +104,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         );
 
                         // todo: handle repeating occurances
-                        let tree = commit.tree()?;
-                        let entry = tree.get_path(target_file_path)?;
-                        let blob = repo.find_blob(entry.id())?;
+                        let tree = commit.tree().unwrap();
+                        let entry = tree.get_path(target_file_path).unwrap();
+                        let blob = repo.find_blob(entry.id()).unwrap();
                         let content = String::from_utf8_lossy(blob.content());
                         if args.verbose {
                             println!("FILE CONTENTS:\n\n{}", content);
@@ -123,6 +123,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             break;
         }
     }
-
-    Ok(())
+    
 }
