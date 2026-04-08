@@ -9,3 +9,4 @@ git2 = "0.20.4"
 chrono = "0.4"
 clap = {version = "4.6.0", features = ["derive"]}
 # git-commits = "0.1.0"
+encoding_rs = "0.8"

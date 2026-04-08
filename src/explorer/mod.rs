@@ -5,3 +5,4 @@ pub mod changes;
 pub mod change;
 pub mod change_type;
 pub mod delta_file_ref;
+pub mod utils;

@@ -7,7 +7,7 @@ use std::path::Path;
 use clap::Parser;
 use git2::{DiffFormat, DiffOptions, Repository, Sort};
 
-use crate::parser::CommandArgs;
+use crate::{explorer::utils::bytes_to_path, parser::CommandArgs};
 
 
 #[tokio::main]
@@ -79,14 +79,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut found = false;
 
         for delta in diff.deltas() {
-            if let Some(new_path) = delta.new_file().path() {
+
+            // skipping comparison if the file is binary
+            if delta.new_file().is_binary() == true || delta.old_file().is_binary() == true {
+                continue;
+            }
+
+            if let Some(new_path_bytes) = delta.new_file().path_bytes() {
+                let new_path = match bytes_to_path(new_path_bytes) {
+                    Some(path) => path,
+                    None => {
+                        eprintln!("Warning: Could not decode file path, skipping");
+                        continue;
+                    }
+                };
                 if new_path == target_file_path {
                     let commit_summary = match commit.summary() {
                         Some(s) => s,
                         None => "",
                     };
-                    diff.print(DiffFormat::Patch, |d, _h, line| {
-                        if d.new_file().path() == Some(target_file_path) && line.origin() == '+' {
+                    match diff.print(DiffFormat::Patch, |d, _h, line| {
+                        let matches_target = d.new_file().path_bytes()
+                            .and_then(|bytes| bytes_to_path(bytes))
+                            .map(|path| path == target_file_path)
+                            .unwrap_or(false);
+                        
+                        if matches_target && line.origin() == '+' {
                             let line_str = String::from_utf8_lossy(line.content());
                             if line_str.contains(check_phrase) {
                                 result_phrase_line = line_str.to_string();
@@ -94,7 +112,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                         true
-                    })?;
+                    }) {
+                        Ok(_) => {},
+                        Err(err) => {
+                            eprint!("Error occurred:\n{}\n",err);
+                            eprintln!("------ SKIPPING FILE THAT CAN NOT BE PROCESSED ------");
+                            continue;
+                        }
+                    };
 
                     if found {
                         println!(
