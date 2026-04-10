@@ -2,7 +2,7 @@ mod explorer;
 mod parser;
 mod tests;
 
-use std::path::Path;
+use std::{path::Path, time::Instant};
 
 use clap::Parser;
 use git2::{DiffFormat, DiffOptions, Repository, Sort};
@@ -13,45 +13,51 @@ use crate::{explorer::utils::bytes_to_path, parser::CommandArgs};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-    let args = CommandArgs::parse();
+    // let args = CommandArgs::parse();
 
-    if args.verbose {
-        println!("\n*******************************************************");
-        println!("repo_path:            {}", args.repo_path);
-        println!("file_path:            {}", args.file_path);
-        println!("phrase:               {}", args.phrase);
-        println!("single_discovery:     {}", args.single_discovery);
-        println!("verbose:              {}", args.verbose);
-        println!("*******************************************************\n");
-    }
+    // if args.verbose {
+    //     println!("\n*******************************************************");
+    //     println!("repo_path:            {}", args.repo_path);
+    //     println!("file_path:            {}", args.file_path);
+    //     println!("phrase:               {}", args.phrase);
+    //     println!("single_discovery:     {}", args.single_discovery);
+    //     println!("verbose:              {}", args.verbose);
+    //     println!("*******************************************************\n");
+    // }
 
-
-    println!("\n-----------------------------------------------------\n");
+    let start = Instant::now();
 
     // X------------------------------------------ EXTERNAL VARIABLES ------------------------------------------X
-    let repo_path = &args.repo_path;
-    let file_path = &args.file_path;
-    let check_phrase = &args.phrase;
-    let single_discovery = args.single_discovery;
+    // let repo_path = &args.repo_path;
+    // let file_path = &args.file_path;
+    // let check_phrase = &args.phrase;
+    // let single_discovery = args.single_discovery;
 
-    // let repo_path = "/home/hellsent/ZedProjects/git-phrase-explorer/git-commits-track-test";
-    // let file_path =  "file1.txt"; // "src/App.jsx";
-    // let check_phrase = "UPDATED FILE IN branch2 changes";
-    // let single_discovery = true;
+    let repo_path = "/home/hellsent/ZedProjects/email-newsletter-rust";
+    let file_path =  "tests/api/helpers.rs";
+    let check_phrase = "reqwest::Response";
+    let max_count = Some(5);
+    let single_discovery = false;
     // X-----------------------------------------X EXTERNAL VARIABLES X-----------------------------------------X
 
-    let mut result_phrase_line = String::new();
+    let mut matching_phrase_lines: Vec<(String, String)> = Vec::new();
 
-    let repo = Repository::open(repo_path)?;
+    let repo = Repository::open(repo_path).unwrap();
     let target_file_path = Path::new(file_path);
 
-    let mut revwalk = repo.revwalk()?;
-    revwalk.push_head()?;
-    revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::REVERSE)?; // utilizing reverse topological sorting
+    let mut revwalk = repo.revwalk().unwrap();
+    revwalk.push_head().unwrap();
+    revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::REVERSE).unwrap(); // utilizing reverse topological sorting
 
+    let mut curr_count = 0;
     for oid in revwalk {
-        let oid = oid?;
-        let commit = repo.find_commit(oid)?;
+
+        if let Some(count) = max_count {
+            if curr_count >= count { break; }
+        }
+
+        let oid = oid.unwrap();
+        let commit = repo.find_commit(oid).unwrap();
 
         let mut has_parent = false;
         if commit.parent_count() > 0 {
@@ -59,95 +65,54 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         let mut diff_opts = DiffOptions::new();
+        diff_opts.pathspec(target_file_path);
+
         let parent;
         let diff;
+        
 
         if has_parent {
-            parent = commit.parent(0)?;
+            parent = commit.parent(0).unwrap();
             diff = repo.diff_tree_to_tree(
-                Some(&mut parent.tree()?),
-                Some(&mut commit.tree()?),
+                Some(&mut parent.tree().unwrap()),
+                Some(&mut commit.tree().unwrap()),
                 Some(&mut diff_opts)
-            )?;
+            ).unwrap();
         } else {
             diff = repo.diff_tree_to_tree(
                 None,
-                Some(&mut commit.tree()?),
+                Some(&mut commit.tree().unwrap()),
                 Some(&mut diff_opts)
-            )?;
+            ).unwrap();
         }
-        let mut found = false;
 
-        for delta in diff.deltas() {
-
-            // skipping comparison if the file is binary
-            if delta.new_file().is_binary() == true || delta.old_file().is_binary() == true {
-                continue;
-            }
-
-            if let Some(new_path_bytes) = delta.new_file().path_bytes() {
-                let new_path = match bytes_to_path(new_path_bytes) {
-                    Some(path) => path,
-                    None => {
-                        eprintln!("Warning: Could not decode file path, skipping");
-                        continue;
-                    }
-                };
-                if new_path == target_file_path {
-                    let commit_summary = match commit.summary() {
-                        Some(s) => s,
-                        None => "",
-                    };
-                    match diff.print(DiffFormat::Patch, |d, _h, line| {
-                        let matches_target = d.new_file().path_bytes()
-                            .and_then(|bytes| bytes_to_path(bytes))
-                            .map(|path| path == target_file_path)
-                            .unwrap_or(false);
-                        
-                        if matches_target && line.origin() == '+' {
-                            let line_str = String::from_utf8_lossy(line.content());
-                            if line_str.contains(check_phrase) {
-                                result_phrase_line = line_str.to_string();
-                                found = true;
-                            }
-                        }
-                        true
-                    }) {
-                        Ok(_) => {},
-                        Err(err) => {
-                            eprint!("Error occurred:\n{}\n",err);
-                            eprintln!("------ SKIPPING FILE THAT CAN NOT BE PROCESSED ------");
-                            continue;
-                        }
-                    };
-
-                    if found {
-                        println!(
-                            "Commit: {} || Summary: {:?}",
-                            commit.id(),
-                            commit_summary
-                        );
-
-                        // todo: handle repeating occurances
-                        let tree = commit.tree()?;
-                        let entry = tree.get_path(target_file_path)?;
-                        let blob = repo.find_blob(entry.id())?;
-                        let content = String::from_utf8_lossy(blob.content());
-                        if args.verbose {
-                            println!("FILE CONTENTS:\n\n{}", content);
-                        }
-                        println!("\n-----------------------------------------\n");
-                        println!("LINE COTNENTS:\n\n{}", result_phrase_line);
-                        println!("\n-----------------------------------------\n");
-                    }
+        diff.print(DiffFormat::Patch, |_d, _h, line| {
+            if let Ok(content) = std::str::from_utf8(line.content()) {
+                if content.contains(check_phrase) {
+                    matching_phrase_lines.push((oid.to_string(), content.to_string()));
+                    curr_count += 1;
                 }
             }
-        }
+            true
+        }).unwrap();
 
-        if single_discovery && found {
-            break;
-        }
+
+        // let deltas: Vec<_> = diff.deltas().collect();
+        // if !deltas.is_empty() {  // File actually changed
+        //     curr_count += 1;
+        // }
     }
+
+
+    println!("-----------------------------------------------------\n");
+    for (oid, line_contents) in matching_phrase_lines {
+        println!("COMMIT ID: {}", oid);
+        println!("COMMIT LINE CONTENTS:\n{}", line_contents);
+        println!("-----------------------------------------------------\n");
+    }
+
+    let duration = start.elapsed();
+    println!("Time elapsed: {:?}", duration);
 
     Ok(())
 }

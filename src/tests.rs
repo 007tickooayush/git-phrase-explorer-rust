@@ -1,7 +1,6 @@
 use std::{path::Path, time::Instant};
 
 use git2::{Diff, DiffFormat, DiffOptions, Repository, Sort};
-use rayon::iter::{ParallelBridge, ParallelIterator};
 
 
 
@@ -51,25 +50,16 @@ fn test_structured_changes() {
             if let Some(line_contents) = change.line_contents() {
                 if let Some(change_file_path) = change.new_file_path() {
 
-                    // for line in line_contents.lines() {
-                    //     if line.contains(check_phrase) && change_file_path.iter().eq(target_file_path) {
-                    //         let line_origin = line.chars().next().unwrap();
-                    //         if line_origin == '+' {
-                    //             found_changes = true;
-                    //             // println!("FOUND CHANGE || LINE ORIGIN == '+'");
-                    //             // println!("><><><><><><><><><><><><><");
-                    //             // println!("CHANGE CONTENTS:\n{}",change);
-                    //             // println!("><><><><><><><><><><><><><");
-                    //         }
-                    //     }
-                    // }
-                    if change_file_path.eq(target_file_path) {
-                        let has_changes_present = line_contents.lines().par_bridge().any(|line| {
-                           let line_origin = line.chars().next().unwrap();
-                           line_origin == '+'
-                        });
-                        if has_changes_present {
-                            found_changes = true;
+                    for line in line_contents.lines() {
+                        if line.contains(check_phrase) && change_file_path.iter().eq(target_file_path) {
+                            let line_origin = line.chars().next().unwrap();
+                            if line_origin == '+' {
+                                found_changes = true;
+                                // println!("FOUND CHANGE || LINE ORIGIN == '+'");
+                                // println!("><><><><><><><><><><><><><");
+                                // println!("CHANGE CONTENTS:\n{}",change);
+                                // println!("><><><><><><><><><><><><><");
+                            }
                         }
                     }
                 }
