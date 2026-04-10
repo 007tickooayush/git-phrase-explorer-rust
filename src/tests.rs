@@ -1,4 +1,4 @@
-use std::{path::Path, time::Instant};
+use std::{path::Path, sync::{atomic::{AtomicUsize, Ordering}, Arc}, thread, time::Instant};
 
 use git2::{Diff, DiffFormat, DiffOptions, Repository, Sort};
 
@@ -296,4 +296,119 @@ fn test_targetted_file_spec_filter() {
     }
     let duration = start.elapsed();
     println!("Time elapsed: {:?}", duration);
+}
+
+#[tokio::test]
+async fn test_concurrent_trav_diffs() -> Result<(), Box<dyn std::error::Error>> {
+    let start = Instant::now();
+
+    // X------------------------------------------ EXTERNAL VARIABLES ------------------------------------------X
+    // let repo_path = &args.repo_path;
+    // let file_path = &args.file_path;
+    // let check_phrase = &args.phrase;
+    // let single_discovery = args.single_discovery;
+
+    // let repo_path = "/home/hellsent/ZedProjects/git-phrase-explorer/git-commits-track-test";
+    // let file_path =  "file1.txt"; // "src/App.jsx";
+    // let check_phrase = "UPDATED FILE IN branch2 changes";
+
+    let repo_path = "/home/hellsent/ZedProjects/email-newsletter-rust";
+    let file_path =  "tests/api/helpers.rs";
+    let check_phrase = "reqwest::Response";
+    let max_count = Some(5);
+    // let verbose = false;
+    // X-----------------------------------------X EXTERNAL VARIABLES X-----------------------------------------X
+
+    // let mut result_phrase_line = String::new();
+    // let mut matching_phrase_lines: Vec<(String, String)> = Vec::new();
+
+    let repo_path = repo_path.to_string();
+    let target_file_path = Path::new(file_path);
+
+    let repo = Repository::open(&repo_path).unwrap();
+    let mut revwalk = repo.revwalk().unwrap();
+    revwalk.push_head().unwrap();
+    revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::REVERSE).unwrap(); // utilizing reverse topological sorting
+
+    // Avoiding `Mutex` and using `AtomicUsize` atomic counter to remove synchronization overhead
+    let curr_count = Arc::new(AtomicUsize::new(0));
+    let mut handles: Vec<_> = Vec::new();
+
+    for oid in revwalk {
+        let oid = oid?;
+        let repo_path = repo_path.clone();
+        let curr_count = curr_count.clone();
+        
+        if let Some(count) = max_count {
+            if curr_count.load(Ordering::Relaxed) >= count { break; }
+        }
+
+        handles.push(
+            thread::spawn(move || {
+                let repo = Repository::open(&repo_path).unwrap();
+                let commit = repo.find_commit(oid.clone()).unwrap();
+
+                let diff;
+                let parent;
+
+                let mut diff_opts = DiffOptions::new();
+                diff_opts.pathspec(target_file_path);
+                
+
+                let mut found_phrase = String::new();
+                let mut has_changes = false;
+
+                if commit.parent_count() > 0 {
+                    parent = commit.parent(0).unwrap();
+                    diff = repo.diff_tree_to_tree(
+                        Some(&mut parent.tree().unwrap()), 
+                        Some(&mut commit.tree().unwrap()), 
+                        Some(&mut diff_opts)).unwrap();
+                } else {
+                    diff = repo.diff_tree_to_tree(
+                        None, 
+                        Some(&mut commit.tree().unwrap()), 
+                        Some(&mut diff_opts)).unwrap();
+                }
+
+                diff.print(DiffFormat::Patch, |_d, _h, line| {
+                    if let Ok(line_contents) = str::from_utf8(line.content()) {
+                        if line_contents.contains(check_phrase) {
+                            found_phrase = line_contents.to_string();
+                            curr_count.fetch_add(1, Ordering::Relaxed);
+                            has_changes = true;
+                        }
+                    }
+                    true
+                }).unwrap();
+
+                if has_changes {
+                    Some((oid, found_phrase, commit.time()))
+                } else {
+                    None
+                }
+            })
+        );
+    }
+
+    println!("-----------------------------------------------------\n");
+    for handle in handles {
+        if let Some((oid, line_contents, time)) = handle.join().unwrap() {
+            println!(
+                "COMMIT ID: {} | COMMIT TIME: {} (offset {} min, sign {})",
+                oid,
+                time.seconds(),
+                time.offset_minutes(),
+                time.sign()
+            );
+    
+            println!("COMMIT LINE CONTENTS:\n{}", line_contents);
+            println!("-----------------------------------------------------\n");
+        }
+    }
+
+    let duration = start.elapsed();
+    println!("test_concurrent_trav_diffs elapsed: {:?}", duration);
+
+    Ok(())
 }
