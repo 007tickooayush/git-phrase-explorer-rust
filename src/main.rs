@@ -33,10 +33,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // let check_phrase = &args.phrase;
     // let single_discovery = args.single_discovery;
 
-    let repo_path = "/home/hellsent/ZedProjects/email-newsletter-rust";
-    let file_path =  "tests/api/helpers.rs";
-    let check_phrase = "reqwest::Response";
+    // let repo_path = "/home/hellsent/ZedProjects/email-newsletter-rust";
+    // let file_path =  "tests/api/helpers.rs";
+    // let check_phrase = "reqwest::Response";
+
+    let repo_path = "/home/hellsent/ZedProjects/git-phrase-explorer/git-commits-track-test-mark2/ppub";
+    let file_path =  "o.txt";
+    let check_phrase = "'SANDTMN': {'bids': [[249010.0, 85.488281544]";
     let max_count = Some(5);
+
     let single_discovery = false;
     // X-----------------------------------------X EXTERNAL VARIABLES X-----------------------------------------X
 
