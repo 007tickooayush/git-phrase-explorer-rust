@@ -1,6 +1,7 @@
-use std::{path::Path, sync::{atomic::{AtomicUsize, Ordering}, Arc}, thread, time::Instant};
+use std::{path::{Path, PathBuf}, sync::{Arc, RwLock, atomic::{AtomicUsize, Ordering}}, thread, time::Instant};
 
 use git2::{Diff, DiffFormat, DiffOptions, Repository, Sort};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 
 
@@ -424,6 +425,7 @@ async fn test_concurrent_trav_diffs() -> Result<(), Box<dyn std::error::Error>> 
 
 
 #[tokio::test]
+/// Significant increase in performance
 async fn test_concurrent_pathspec_line_chunk() -> Result<(), Box<dyn std::error::Error>> {
     let start = Instant::now();
 
@@ -448,110 +450,74 @@ async fn test_concurrent_pathspec_line_chunk() -> Result<(), Box<dyn std::error:
     // let verbose = false;
     // X-----------------------------------------X EXTERNAL VARIABLES X-----------------------------------------X
 
-    let repo_path = repo_path.to_string();
-    let target_file_path = Path::new(file_path);
-
-    let repo = Repository::open(&repo_path).unwrap();
-    let mut revwalk = repo.revwalk().unwrap();
-    revwalk.push_head().unwrap();
-    revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::REVERSE).unwrap(); // utilizing reverse topological sorting
-
-    // Avoiding `Mutex` and using `AtomicUsize` atomic counter to remove synchronization overhead
-    let curr_count = Arc::new(AtomicUsize::new(0));
-    let mut handles: Vec<_> = Vec::new();
-    let chunk_size= 200;
-
-    for oid in revwalk {
-        let oid = oid?;
-        let repo_path = repo_path.clone();
-        let curr_count = curr_count.clone();
-        
-        if let Some(count) = max_count {
-            if curr_count.load(Ordering::Relaxed) >= count { break; }
-        }
-
-        handles.push(
-            thread::spawn(move || {
-                let repo = Repository::open(&repo_path).unwrap();
-                let commit = repo.find_commit(oid.clone()).unwrap();
-
-                let diff;
-                let parent;
-
-                let mut diff_opts = DiffOptions::new();
-                diff_opts.pathspec(target_file_path);
-                
-
-                let mut found_phrase = String::new();
-                let mut has_changes = false;
-
-                if commit.parent_count() > 0 {
-                    parent = commit.parent(0).unwrap();
-                    diff = repo.diff_tree_to_tree(
-                        Some(&mut parent.tree().unwrap()), 
-                        Some(&mut commit.tree().unwrap()), 
-                        Some(&mut diff_opts)).unwrap();
-                } else {
-                    diff = repo.diff_tree_to_tree(
-                        None, 
-                        Some(&mut commit.tree().unwrap()), 
-                        Some(&mut diff_opts)).unwrap();
-                }
-
-                diff.print(DiffFormat::Patch, |_d, _h, line| {
-                    if line.content().len() > (chunk_size * 2) {
-                        // traverse the files in chunks
-                        let line_contents = line.content();
-                        let mut curr_idx = 0;
-
-                        while curr_idx < line_contents.len() {
-                            let iter_hop = (curr_idx + chunk_size).min(line_contents.len());
-                            let chunk_contents = &line_contents[curr_idx..iter_hop];
-                            let chunk_str = String::from_utf8_lossy(chunk_contents);
-                            if chunk_str.contains(check_phrase) {
-                                found_phrase = chunk_str.to_string();
-                                curr_count.fetch_add(1, Ordering::Relaxed);
-                                has_changes = true;
-                                break;
-                            }
-                            curr_idx = iter_hop;
-                        }
-
-                    } else {
-                        if let Ok(line_contents) = str::from_utf8(line.content()) {
-                            if line_contents.contains(check_phrase) {
-                                found_phrase = line_contents.to_string();
-                                curr_count.fetch_add(1, Ordering::Relaxed);
-                                has_changes = true;
-                            }
-                        }
-                    }
-                    true
-                }).unwrap();
-
-                if has_changes {
-                    Some((oid, found_phrase, commit.time()))
-                } else {
-                    None
-                }
-            })
-        );
-    }
-
-    println!("-----------------------------------------------------\n");
-    for handle in handles {
-        if let Some((oid, line_contents, time)) = handle.join().unwrap() {
-            println!(
-                "COMMIT ID: {} | COMMIT TIME: {} (offset {} min, sign {})",
-                oid,
-                time.seconds(),
-                time.offset_minutes(),
-                time.sign()
-            );
     
-            println!("COMMIT LINE CONTENTS:\n{}", line_contents);
-            println!("-----------------------------------------------------\n");
-        }
+    let repo = Repository::open(&repo_path)?;
+    let mut revwalk = repo.revwalk()?;
+    revwalk.push_head()?;
+    revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::REVERSE)?; // utilizing reverse topological sorting
+    
+    
+    let oids: Vec<_> = revwalk.filter_map(Result::ok).collect();
+    let repo_path = Arc::new(repo_path.to_string());
+    let target_file_path = Arc::new(PathBuf::from(file_path));
+    let check_phrase = Arc::new(check_phrase.to_string());
+    let curr_count = Arc::new(AtomicUsize::new(0));
+
+    let results: Vec<_> = oids.par_iter()
+        .filter_map(|&oid| {
+            if let Some(max) = max_count {
+                if curr_count.load(Ordering::Relaxed) >= max {
+                    return None;
+                }
+            }
+
+            let repo = Repository::open(repo_path.as_str()).unwrap();
+            let commit = repo.find_commit(oid).unwrap();
+
+            let mut diff_opts = {
+                let mut opts = DiffOptions::new();
+                opts.pathspec(target_file_path.as_path());
+                opts
+            };
+
+            let diff = if commit.parent_count() > 0 {
+                let parent = commit.parent(0).unwrap();
+                repo.diff_tree_to_tree(
+                    Some(&mut parent.tree().unwrap()), 
+                    Some(&mut commit.tree().unwrap()), 
+                Some(&mut diff_opts)).unwrap()
+            } else {
+                repo.diff_tree_to_tree(
+                    None, 
+                    Some(&mut commit.tree().unwrap()), 
+                Some(&mut diff_opts)).unwrap()
+            };
+
+            let mut found_changes = String::new();
+            let mut has_changes = false;
+
+            diff.print(DiffFormat::Patch, | _d, _h, line | {
+                if let Ok(line_contents) = std::str::from_utf8(line.content()) {
+                    if line_contents.contains(check_phrase.as_str()) {
+                        found_changes = line_contents.to_string();
+                        curr_count.fetch_add(1, Ordering::Relaxed);
+                        has_changes = true;
+                    }
+                }
+                true
+            }).unwrap();
+
+            if has_changes {
+                Some((oid, found_changes, commit.time()))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    for (oid, line_contents, time) in results {
+        println!("COMMIT ID: {} | COMMIT TIME: {}", oid, time.seconds());
+        println!("COMMIT LINE CONTENTS:\n{}", line_contents);
     }
 
     let duration = start.elapsed();
