@@ -1,7 +1,7 @@
 use std::{path::{Path, PathBuf}, sync::{Arc, RwLock, atomic::{AtomicUsize, Ordering}}, thread, time::Instant};
 
 use git2::{Diff, DiffFormat, DiffOptions, Repository, Sort};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::{iter::{IntoParallelRefIterator, ParallelIterator}, slice::ParallelSlice};
 
 
 
@@ -447,6 +447,7 @@ async fn test_concurrent_pathspec_line_chunk() -> Result<(), Box<dyn std::error:
     let file_path =  "o.txt";
     let check_phrase = "'SANDTMN': {'bids': [[249010.0, 85.488281544]";
     let max_count = Some(5);
+    let chunk_size = 200;
     // let verbose = false;
     // X-----------------------------------------X EXTERNAL VARIABLES X-----------------------------------------X
 
@@ -462,6 +463,7 @@ async fn test_concurrent_pathspec_line_chunk() -> Result<(), Box<dyn std::error:
     let target_file_path = Arc::new(PathBuf::from(file_path));
     let check_phrase = Arc::new(check_phrase.to_string());
     let curr_count = Arc::new(AtomicUsize::new(0));
+    let chunk_size = Arc::new(chunk_size);
 
     let results: Vec<_> = oids.par_iter()
         .filter_map(|&oid| {
@@ -497,13 +499,41 @@ async fn test_concurrent_pathspec_line_chunk() -> Result<(), Box<dyn std::error:
             let mut has_changes = false;
 
             diff.print(DiffFormat::Patch, | _d, _h, line | {
-                if let Ok(line_contents) = std::str::from_utf8(line.content()) {
-                    if line_contents.contains(check_phrase.as_str()) {
-                        found_changes = line_contents.to_string();
-                        curr_count.fetch_add(1, Ordering::Relaxed);
-                        has_changes = true;
+                let line_contents = line.content();
+                if line_contents.len() > ((*chunk_size) * 2) {
+                    
+                    let occurances: Vec<_> = line_contents
+                        .par_chunks(*chunk_size)
+                        .filter_map(|chunk| {
+                            let chunk_str = String::from_utf8_lossy(chunk);
+                            if chunk_str.contains(check_phrase.as_str()) {
+                                Some(chunk_str)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    // in case if multiple occurances are found
+                    // if occurances.len() > 1 { }
+
+                    if !occurances.is_empty() {
+                        if let Some(chunk_found) = occurances.get(0){ 
+                            found_changes = chunk_found.to_string();
+                            curr_count.fetch_add(1, Ordering::Relaxed);
+                            has_changes = true;
+                        }
+                    }
+
+                } else {
+                    if let Ok(line_contents) = std::str::from_utf8(line.content()) {
+                        if line_contents.contains(check_phrase.as_str()) {
+                            found_changes = line_contents.to_string();
+                            curr_count.fetch_add(1, Ordering::Relaxed);
+                            has_changes = true;
+                        }
                     }
                 }
+
                 true
             }).unwrap();
 
