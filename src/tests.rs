@@ -501,27 +501,27 @@ async fn test_concurrent_pathspec_line_chunk() -> Result<(), Box<dyn std::error:
             diff.print(DiffFormat::Patch, | _d, _h, line | {
                 let line_contents = line.content();
                 if line_contents.len() > ((*chunk_size) * 2) {
-                    
-                    let occurances: Vec<_> = line_contents
-                        .par_chunks(*chunk_size)
-                        .filter_map(|chunk| {
-                            let chunk_str = String::from_utf8_lossy(chunk);
-                            if chunk_str.contains(check_phrase.as_str()) {
-                                Some(chunk_str)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
-                    // in case if multiple occurances are found
-                    // if occurances.len() > 1 { }
+                    let needle = check_phrase.as_bytes();
+                    let chunk_size = *chunk_size;
+                    let overlap = needle.len().saturating_sub(1);
 
-                    if !occurances.is_empty() {
-                        if let Some(chunk_found) = occurances.get(0){ 
-                            found_changes = chunk_found.to_string();
+                    let mut idx = 0;
+
+                    while idx < line_contents.len() {
+                        let end = usize::min(idx + chunk_size, line_contents.len());
+                        let chunk = &line_contents[idx..end];
+
+                        // using overlapping chunk traversal to avoid boundary-split result bug
+                        if chunk.windows(needle.len()).any(|window| window == needle) {
+                            found_changes = String::from_utf8_lossy(chunk).to_string();
                             curr_count.fetch_add(1, Ordering::Relaxed);
                             has_changes = true;
+                            break;
                         }
+
+                        if end == line_contents.len() { break; }
+
+                        idx += chunk_size.saturating_sub(overlap);
                     }
 
                 } else {
