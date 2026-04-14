@@ -13,8 +13,8 @@ pub struct CommandArgs {
     #[clap(short, long)]
     pub phrase: String,
 
-    #[clap(short, long)] //, default_value = "true"
-    pub single_discovery: bool,
+    #[clap(short, long, default_value = "5")] //, default_value = "true"
+    pub max_count: usize,
     
     #[clap(short, long)]
     pub verbose: bool

@@ -113,7 +113,7 @@ This creates a new Rust project and runs it; you should see `Hello, world!` prin
 
 ## Command Usage:
 
-cargo run -- --repo <REPO_PATH> --file <FILE_PATH> --phrase <PHRASE> [--single-discovery] [--verbose]
+cargo run -- --repo <REPO_PATH> --file <FILE_PATH> --phrase <PHRASE> [--max-count <N>] [--verbose]
 
 
 ## Command Structure description:
@@ -123,12 +123,12 @@ The tool accepts the following command-line arguments:
 - `-r, --repo <REPO_PATH>`: Path to the Git repository to analyze (required).
 - `-f, --file <FILE_PATH>`: Path to the specific file within the repository to search for changes (required).
 - `-p, --phrase <PHRASE>`: The phrase to search for in the file's diff lines (required).
-- `-s, --single-discovery`: If set, stop after finding the first matching commit (optional, default: false).
+- `-m, --max-count <N>`: Maximum number of matching commits to return (optional, default: 5).
 - `-v, --verbose`: Enable verbose output (optional, default: false).
 
 
 ## Command example:
 ```bash
-cargo run -- --repo "/home/hellsent/ZedProjects/git-phrase-explorer/git-commits-track-test" --file "file1.txt" --phrase "UPDATED FILE IN branch2 changes"  -s -v
+cargo run -- --repo "/home/hellsent/ZedProjects/git-phrase-explorer/git-commits-track-test" --file "file1.txt" --phrase "UPDATED FILE IN branch2 changes" --max-count 1 -v
 ```
 
