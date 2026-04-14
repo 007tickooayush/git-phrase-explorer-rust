@@ -129,6 +129,10 @@ The tool accepts the following command-line arguments:
 
 ## Command example:
 ```bash
-cargo run -- --repo "/home/hellsent/ZedProjects/git-phrase-explorer/git-commits-track-test" --file "file1.txt" --phrase "UPDATED FILE IN branch2 changes" --max-count 1 -v
+cargo run -- --repo "/home/hellsent/ZedProjects/git-phrase-explorer/git-commits-track-test-mark2/ppub" --file "o.txt" --phrase "'SANDTMN': {'bids': [[249010.0, 85.488281544]" --max-count 5 -v
 ```
 
+- utilize ***`--release`*** option for more optimized approach:
+```bash
+cargo run --release -- --repo "/home/hellsent/ZedProjects/git-phrase-explorer/git-commits-track-test-mark2/ppub" --file "o.txt" --phrase "'SANDTMN': {'bids': [[249010.0, 85.488281544]" --max-count 5 -v
+```
