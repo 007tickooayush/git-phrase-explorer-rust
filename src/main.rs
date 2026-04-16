@@ -8,7 +8,7 @@ use clap::Parser;
 use git2::{DiffFormat, DiffOptions, Repository, Sort};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-use crate::{explorer::utils::bytes_to_path, parser::CommandArgs};
+use crate::{explorer::{commit, utils::bytes_to_path}, parser::CommandArgs};
 
 // todo: IMPLEMENT the NON-CHUNK PARALLELISM BASED APPROACH FOR TRAVERSAL
 
@@ -107,7 +107,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }).unwrap();
 
             if has_changes {
-                Some((oid, found_phrase, commit.time()))
+                Some((oid, commit.summary().map(|s| s.to_string()), found_phrase, commit.time()))
             } else {
                 None
             }
@@ -115,15 +115,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
 
     println!("-----------------------------------------------------\n");
-    for (oid, line_contents, time) in results {
+    for (oid, commit_summary, line_contents, time) in results {
         let time = chrono::DateTime::from_timestamp_secs(time.seconds());
         if let Some(time) = time {
             println!("COMMIT ID: {} | COMMIT TIME: {}", oid, time);
         }
+        let summary = if let Some(summary) = &commit_summary {
+            summary
+        } else {
+            ""
+        };
+        println!("COMMIT MESSAGE: {}", summary);
         if line_contents.len() <= 200 {
             println!("COMMIT LINE CONTENTS:\n{}", line_contents);
         } else {
-            println!("COMMIT LINE CONTENTS:\n{}", line_contents.get(..200).unwrap());
+            println!("COMMIT LINE CONTENTS:\n{}...", line_contents.get(..200).unwrap());
         }
         println!("-----------------------------------------------------\n");
     }
